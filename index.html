@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>接水果 (Catch It) V2.0 - 高效能狂熱版</title>
+    <title>接水果 (Catch It) V2.0 - 動態精靈與音訊升級版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./css/style.css">
@@ -12,8 +12,21 @@
 
     <div id="gameWrapper" class="w-full max-w-md h-full max-h-[880px] flex flex-col p-3 sm:p-4 bg-slate-900/90 rounded-2xl border-2 border-indigo-500/40 neon-shadow relative transition-all duration-300">
         
+        <!-- Top Toolbar: Producer Credit & Audio Toggles -->
+        <div class="flex justify-between items-center mb-2 px-1">
+            <span class="text-[10px] sm:text-xs text-amber-300 font-black tracking-wide arcade-font">製作人：[31131]</span>
+            <div class="flex items-center gap-2">
+                <button id="bgmToggle" class="bg-slate-950/80 hover:bg-slate-800 px-2.5 py-1 rounded-lg border border-indigo-500/30 text-[10px] text-slate-200 transition flex items-center gap-1 cursor-pointer">
+                    <span>🎵 音樂開</span>
+                </button>
+                <button id="sfxToggle" class="bg-slate-950/80 hover:bg-slate-800 px-2.5 py-1 rounded-lg border border-indigo-500/30 text-[10px] text-slate-200 transition flex items-center gap-1 cursor-pointer">
+                    <span>🔊 音效開</span>
+                </button>
+            </div>
+        </div>
+
         <!-- Header / HUD -->
-        <div class="flex justify-between items-center bg-slate-950/90 p-2.5 sm:p-3 rounded-xl border border-indigo-500/30 mb-3 shadow-lg">
+        <div class="flex justify-between items-center bg-slate-950/90 p-2.5 sm:p-3 rounded-xl border border-indigo-500/30 mb-2.5 shadow-lg">
             <div class="flex flex-col">
                 <span class="text-[9px] text-indigo-300 uppercase tracking-wider arcade-font">分數 SCORE</span>
                 <span id="scoreVal" class="text-lg sm:text-xl font-black text-amber-400 arcade-font">0</span>
@@ -45,11 +58,12 @@
 
             <!-- Start Screen Overlay -->
             <div id="startOverlay" class="absolute inset-0 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20">
-                <div class="w-20 h-20 bg-gradient-to-tr from-amber-400 via-pink-500 to-indigo-600 rounded-3xl flex items-center justify-center shadow-xl shadow-pink-500/30 mb-5 animate-bounce">
+                <div class="w-20 h-20 bg-gradient-to-tr from-amber-400 via-pink-500 to-indigo-600 rounded-3xl flex items-center justify-center shadow-xl shadow-pink-500/30 mb-4 animate-bounce">
                     <span class="text-4xl">🧺</span>
                 </div>
-                <h1 class="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-pink-400 to-cyan-300 mb-2 arcade-font">接水果 V2.0</h1>
-                <p class="text-xs text-slate-300 mb-6 max-w-[280px] leading-relaxed">效能優化版！Lv.5後維持掉落數量上限，改以速度提升難度，結合畫面震動與幾何粒子特效。</p>
+                <h1 class="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-pink-400 to-cyan-300 mb-1 arcade-font">接水果 V2.0</h1>
+                <p class="text-[11px] text-amber-300 font-bold mb-3 arcade-font">製作人：[31131]</p>
+                <p class="text-xs text-slate-300 mb-6 max-w-[280px] leading-relaxed">動態精靈圖切割、左右鏡像反轉、背景視差平鋪與高音質 WebAudio 聲效系統！</p>
                 <button id="startBtn" class="w-full py-3.5 px-6 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-cyan-500/40 transition-all transform active:scale-95 arcade-font text-xs tracking-wider cursor-pointer">
                     開始遊戲 START
                 </button>
@@ -79,15 +93,13 @@
         </div>
 
         <!-- Footer / Controls -->
-        <div class="mt-3 flex justify-between items-center text-[11px] text-slate-400 px-1">
-            <span>💡 鍵盤左右鍵 / 觸控拖曳移動</span>
-            <button id="soundToggle" class="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer">
-                <span>🔊 音效開</span>
-            </button>
+        <div class="mt-2.5 flex justify-between items-center text-[11px] text-slate-400 px-1">
+            <span>💡 左右方向鍵 / A、D 鍵 / 觸控滑鼠拖曳</span>
+            <span class="text-[10px] text-indigo-400">v2.1 精靈音訊版</span>
         </div>
     </div>
 
-    <!-- ES6 模組載入 -->
+    <!-- ES6 模組載入（相對路徑防錯） -->
     <script type="module" src="./js/main.js"></script>
 </body>
 </html>

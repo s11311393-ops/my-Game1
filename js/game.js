@@ -1,13 +1,14 @@
 /**
- * 遊戲主循環、狀態管理與音效模組 (Game Engine & State Management)
+ * 遊戲主循環、狀態管理、背景渲染與音訊連動模組 (Game Engine & Audio Integration)
  */
 
 import { GAME_CONFIG, SHAKE_CONFIG } from './config.js';
 import { Player } from './player.js';
 import { EnemyManager } from './enemy.js';
+import { AssetManager } from './assets.js';
 
 /**
- * Web Audio API 程序化音效引擎（無需任何外部音訊檔案）
+ * Web Audio API 程序化音效引擎（作為音效檔案解碼失敗時之 100% 容錯備援）
  */
 export class SoundEngine {
     constructor() {
@@ -99,7 +100,7 @@ export class SoundEngine {
 
 export class Game {
     constructor() {
-        // DOM 與畫布參照
+        // DOM 與畫布
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
         this.gameWrapper = document.getElementById('gameWrapper');
@@ -115,13 +116,15 @@ export class Game {
         this.livesContainer = document.getElementById('livesContainer');
         this.finalScoreEl = document.getElementById('finalScore');
         this.highScoreEl = document.getElementById('highScore');
-        this.soundToggle = document.getElementById('soundToggle');
+        this.bgmToggle = document.getElementById('bgmToggle');
+        this.sfxToggle = document.getElementById('sfxToggle');
         this.frenzyBarContainer = document.getElementById('frenzyBarContainer');
         this.frenzyFill = document.getElementById('frenzyFill');
 
-        // 核心子模組
+        // 資源管理與核心子系統
+        this.assetManager = new AssetManager();
         this.soundEngine = new SoundEngine();
-        this.player = new Player(this.canvas);
+        this.player = new Player(this.canvas, this.assetManager);
         this.enemyManager = new EnemyManager(this.canvas);
 
         // 狀態變數
@@ -138,17 +141,47 @@ export class Game {
         this.screenShakeTime = 0;
         this.screenShakeIntensity = 0;
 
-        // 時間記錄
+        // 背景滾動位移
+        this.bgScrollX = 0;
+
+        // 時間計算
         this.lastTimestamp = performance.now();
     }
 
-    init() {
+    async init() {
+        // 資源預加載（確保圖片與音訊就緒才啟動，避免閃爍或報錯）
+        await this.assetManager.preload();
+        this.player.setAssetManager(this.assetManager);
+
         this.resizeCanvas();
         window.addEventListener('resize', () => this.resizeCanvas());
 
-        this.startBtn.addEventListener('click', () => this.startGame());
-        this.restartBtn.addEventListener('click', () => this.startGame());
-        this.soundToggle.addEventListener('click', () => this.toggleSound());
+        // 監聽使用者首次互動（解鎖現代瀏覽器 Autoplay 政策限制）
+        const unlockAudio = () => {
+            this.assetManager.handleFirstInteraction();
+            this.soundEngine.init();
+            window.removeEventListener('pointerdown', unlockAudio);
+            window.removeEventListener('keydown', unlockAudio);
+        };
+        window.addEventListener('pointerdown', unlockAudio, { passive: true });
+        window.addEventListener('keydown', unlockAudio, { passive: true });
+
+        // 按鈕事件綁定
+        this.startBtn.addEventListener('click', () => {
+            this.assetManager.handleFirstInteraction();
+            this.startGame();
+        });
+        this.restartBtn.addEventListener('click', () => {
+            this.assetManager.handleFirstInteraction();
+            this.startGame();
+        });
+
+        if (this.bgmToggle) {
+            this.bgmToggle.addEventListener('click', () => this.toggleBGM());
+        }
+        if (this.sfxToggle) {
+            this.sfxToggle.addEventListener('click', () => this.toggleSFX());
+        }
 
         this.updateLivesDisplay();
         this.startLoop();
@@ -166,9 +199,21 @@ export class Game {
         this.screenShakeTime = durationMs;
     }
 
-    toggleSound() {
-        this.soundEngine.enabled = !this.soundEngine.enabled;
-        this.soundToggle.innerHTML = this.soundEngine.enabled ? '<span>🔊 音效開</span>' : '<span>🔇 音效關</span>';
+    toggleBGM() {
+        const isPlaying = this.assetManager.toggleBGM();
+        if (this.bgmToggle) {
+            this.bgmToggle.innerHTML = isPlaying ? '<span>🎵 音樂開</span>' : '<span>🔇 音樂關</span>';
+            this.bgmToggle.classList.toggle('text-rose-400', !isPlaying);
+        }
+    }
+
+    toggleSFX() {
+        const isSfxOn = this.assetManager.toggleSFX();
+        this.soundEngine.enabled = isSfxOn;
+        if (this.sfxToggle) {
+            this.sfxToggle.innerHTML = isSfxOn ? '<span>🔊 音效開</span>' : '<span>🔈 音效關</span>';
+            this.sfxToggle.classList.toggle('text-rose-400', !isSfxOn);
+        }
     }
 
     updateLivesDisplay() {
@@ -182,7 +227,10 @@ export class Game {
     }
 
     startGame() {
+        this.assetManager.handleFirstInteraction();
         this.soundEngine.init();
+        this.assetManager.playBGM();
+
         this.score = 0;
         this.lives = GAME_CONFIG.INITIAL_LIVES;
         this.level = 1;
@@ -213,6 +261,9 @@ export class Game {
     gameOver() {
         this.gameState = 'GAMEOVER';
         this.enemyManager.stopSpawning();
+
+        // 觸發擊中/爆炸與死亡音效
+        this.assetManager.playSFX('hit');
         this.soundEngine.playBomb();
         this.triggerScreenShake(SHAKE_CONFIG.gameOver.intensity, SHAKE_CONFIG.gameOver.duration);
 
@@ -231,6 +282,9 @@ export class Game {
         if (item.config.type === 'bomb') {
             this.lives--;
             this.updateLivesDisplay();
+
+            // 觸發受傷音效與畫面震動
+            this.assetManager.playSFX('hit');
             this.soundEngine.playBomb();
             this.triggerScreenShake(SHAKE_CONFIG.bomb.intensity, SHAKE_CONFIG.bomb.duration);
             this.enemyManager.addFloatText(item.x, item.y, '-1 ❤️ 💥', '#ef4444');
@@ -240,7 +294,7 @@ export class Game {
 
             if (this.lives <= 0) {
                 this.gameOver();
-                return true; // 標記為遊戲結束
+                return true;
             }
             return false;
         } else {
@@ -252,7 +306,11 @@ export class Game {
             this.score += earnedPoints;
             this.scoreValEl.innerText = this.score;
 
+            // 觸發得分音效與玩家動作反饋
+            this.assetManager.playSFX('point', this.combo);
+            this.player.triggerCatch();
             this.soundEngine.playCatch(this.combo);
+
             this.triggerScreenShake(SHAKE_CONFIG.catch.intensity, SHAKE_CONFIG.catch.duration);
             this.enemyManager.spawnParticles(item.x, item.y, item.config.glowColor);
 
@@ -278,12 +336,19 @@ export class Game {
     }
 
     update(timestamp) {
-        const dt = (timestamp - this.lastTimestamp) / 1000;
+        const dt = Math.min((timestamp - this.lastTimestamp) / 1000, 0.1);
         this.lastTimestamp = timestamp;
 
-        if (this.gameState !== 'PLAYING') return;
+        // 背景水平微幅平滑滾動（增加空間動態感）
+        this.bgScrollX += dt * 30;
 
-        // Combo 計時器
+        if (this.gameState !== 'PLAYING') {
+            // 待機畫面下角色仍保有待機動畫呼吸更新
+            this.player.update(dt, false);
+            return;
+        }
+
+        // 連擊 Combo 倒數計時
         if (this.combo > 0) {
             this.comboTimer -= dt;
             if (this.comboTimer <= 0) {
@@ -292,7 +357,7 @@ export class Game {
             }
         }
 
-        // 狂熱模式計時器
+        // 狂熱模式倒數計時
         const isFrenzy = this.frenzyTimeLeft > 0;
         if (isFrenzy) {
             this.frenzyTimeLeft -= dt;
@@ -304,13 +369,13 @@ export class Game {
             }
         }
 
-        // 畫面震動計時器
+        // 畫面震動遞減
         if (this.screenShakeTime > 0) {
             this.screenShakeTime -= dt * 1000;
         }
 
-        // 更新玩家
-        this.player.update(isFrenzy);
+        // 更新玩家物理與動畫狀態
+        this.player.update(dt, isFrenzy);
 
         // 更新掉落物並檢測碰撞
         this.enemyManager.update(
@@ -332,21 +397,50 @@ export class Game {
             this.ctx.translate(offsetX, offsetY);
         }
 
-        // 繪製背景網格線
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
-        this.ctx.lineWidth = 1;
-        for (let i = 0; i < this.canvas.width; i += 40) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(i, 0);
-            this.ctx.lineTo(i, this.canvas.height);
-            this.ctx.stroke();
+        // === 1. 繪製背景圖 (background.png) ===
+        const bgImg = this.assetManager.getImage('background');
+        if (bgImg && bgImg.complete && bgImg.naturalWidth > 0) {
+            // 根據畫布高度等比例縮放背景，並進行無縫平鋪滾動
+            const scale = this.canvas.height / bgImg.naturalHeight;
+            const bgScaledWidth = bgImg.naturalWidth * scale;
+            const offsetX = -(this.bgScrollX % bgScaledWidth);
+
+            // 雙圖無縫銜接
+            this.ctx.drawImage(bgImg, offsetX, 0, bgScaledWidth, this.canvas.height);
+            if (offsetX + bgScaledWidth < this.canvas.width) {
+                this.ctx.drawImage(bgImg, offsetX + bgScaledWidth, 0, bgScaledWidth, this.canvas.height);
+            }
+
+            // 加上柔和科技感暗色遮罩，襯托前景水果與籃子的高對比度
+            this.ctx.fillStyle = 'rgba(15, 23, 42, 0.40)';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        } else {
+            // 備援網格背景
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+            this.ctx.lineWidth = 1;
+            for (let i = 0; i < this.canvas.width; i += 40) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(i, 0);
+                this.ctx.lineTo(i, this.canvas.height);
+                this.ctx.stroke();
+            }
         }
 
-        // 繪製玩家籃子
+        // === 2. 繪製玩家角色（動態精靈圖） ===
         this.player.draw(this.ctx, this.frenzyTimeLeft > 0);
 
-        // 繪製掉落物、粒子與浮動文字
+        // === 3. 繪製掉落物、幾何爆炸粒子與浮動文字 ===
         this.enemyManager.draw(this.ctx);
+
+        // === 4. 繪製製作人標註 (左下角浮水印) ===
+        this.ctx.save();
+        this.ctx.font = '700 9px "Press Start 2P", monospace';
+        this.ctx.fillStyle = 'rgba(251, 191, 36, 0.75)';
+        this.ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        this.ctx.shadowBlur = 4;
+        this.ctx.textAlign = 'left';
+        this.ctx.fillText('製作人: [31131]', 10, this.canvas.height - 10);
+        this.ctx.restore();
 
         this.ctx.restore();
     }
