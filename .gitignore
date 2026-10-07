@@ -1,0 +1,19 @@
+# Operating System Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor & IDE Directories
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs and Temporary Files
+*.log
+*.tmp

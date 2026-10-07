@@ -1,0 +1,3 @@
+# External Audio Assets
+Place external BGM and sound effect files here.
+Note: Game currently uses Web Audio API for procedural sound synthesis with zero external dependencies.

@@ -1,0 +1,32 @@
+/* ==========================================================
+   接水果 (Catch It) V2.0 - 核心外觀與版面樣式
+   ========================================================== */
+
+body {
+    font-family: 'Noto Sans TC', sans-serif;
+    touch-action: none;
+    background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
+}
+
+.arcade-font {
+    font-family: 'Press Start 2P', monospace;
+}
+
+.neon-shadow {
+    box-shadow: 0 0 35px rgba(59, 130, 246, 0.3), inset 0 0 20px rgba(59, 130, 246, 0.15);
+}
+
+.frenzy-glow {
+    animation: frenzyPulse 0.4s infinite alternate;
+}
+
+@keyframes frenzyPulse {
+    0% {
+        box-shadow: 0 0 20px #ec4899, inset 0 0 15px #f43f5e;
+        border-color: #f43f5e;
+    }
+    100% {
+        box-shadow: 0 0 45px #06b6d4, inset 0 0 30px #22d3ee;
+        border-color: #22d3ee;
+    }
+}

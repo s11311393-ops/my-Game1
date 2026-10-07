@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>接水果 (Catch It) V2.0 - 高效能狂熱版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            touch-action: none;
+            background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
+        }
+        .arcade-font {
+            font-family: 'Press Start 2P', monospace;
+        }
+        .neon-shadow {
+            box-shadow: 0 0 35px rgba(59, 130, 246, 0.3), inset 0 0 20px rgba(59, 130, 246, 0.15);
+        }
+        .frenzy-glow {
+            animation: frenzyPulse 0.4s infinite alternate;
+        }
+        @keyframes frenzyPulse {
+            0% { box-shadow: 0 0 20px #ec4899, inset 0 0 15px #f43f5e; border-color: #f43f5e; }
+            100% { box-shadow: 0 0 45px #06b6d4, inset 0 0 30px #22d3ee; border-color: #22d3ee; }
+        }
+    </style>
+</head>
+<body class="h-full text-white flex flex-col items-center justify-center overflow-hidden select-none">
+
+    <div id="gameWrapper" class="w-full max-w-md h-full max-h-[880px] flex flex-col p-3 sm:p-4 bg-slate-900/90 rounded-2xl border-2 border-indigo-500/40 neon-shadow relative transition-all duration-300">
+        
+        <!-- Header / HUD -->
+        <div class="flex justify-between items-center bg-slate-950/90 p-2.5 sm:p-3 rounded-xl border border-indigo-500/30 mb-3 shadow-lg">
+            <div class="flex flex-col">
+                <span class="text-[9px] text-indigo-300 uppercase tracking-wider arcade-font">分數 SCORE</span>
+                <span id="scoreVal" class="text-lg sm:text-xl font-black text-amber-400 arcade-font">0</span>
+            </div>
+            <div class="flex flex-col items-center">
+                <span class="text-[9px] text-indigo-300 uppercase tracking-wider arcade-font">等級 LEVEL</span>
+                <span id="levelVal" class="text-lg sm:text-xl font-black text-cyan-400 arcade-font">1</span>
+            </div>
+            <div class="flex flex-col items-center">
+                <span class="text-[9px] text-pink-400 uppercase tracking-wider arcade-font">連擊 COMBO</span>
+                <span id="comboVal" class="text-lg sm:text-xl font-black text-pink-400 arcade-font">x1</span>
+            </div>
+            <div class="flex flex-col items-end">
+                <span class="text-[9px] text-indigo-300 uppercase tracking-wider arcade-font">生命 LIVES</span>
+                <div id="livesContainer" class="flex gap-0.5 mt-1">
+                    <!-- Lives populated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Frenzy status bar -->
+        <div id="frenzyBarContainer" class="w-full bg-slate-950 rounded-full h-2 mb-2 overflow-hidden border border-slate-800 hidden">
+            <div id="frenzyFill" class="bg-gradient-to-r from-pink-500 to-cyan-400 h-full w-full transition-all duration-100"></div>
+        </div>
+
+        <!-- Canvas Container with Screen Shake wrapper -->
+        <div id="canvasBox" class="relative flex-1 w-full bg-slate-950/90 rounded-xl overflow-hidden border border-indigo-500/30 shadow-inner flex items-center justify-center">
+            <canvas id="gameCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+
+            <!-- Start Screen Overlay -->
+            <div id="startOverlay" class="absolute inset-0 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20">
+                <div class="w-20 h-20 bg-gradient-to-tr from-amber-400 via-pink-500 to-indigo-600 rounded-3xl flex items-center justify-center shadow-xl shadow-pink-500/30 mb-5 animate-bounce">
+                    <span class="text-4xl">🧺</span>
+                </div>
+                <h1 class="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-pink-400 to-cyan-300 mb-2 arcade-font">接水果 V2.0</h1>
+                <p class="text-xs text-slate-300 mb-6 max-w-[280px] leading-relaxed">效能優化版！Lv.5後維持掉落數量上限，改以速度提升難度，結合畫面震動與幾何粒子特效。</p>
+                <button id="startBtn" class="w-full py-3.5 px-6 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-cyan-500/40 transition-all transform active:scale-95 arcade-font text-xs tracking-wider cursor-pointer">
+                    開始遊戲 START
+                </button>
+            </div>
+
+            <!-- Game Over Overlay -->
+            <div id="gameOverOverlay" class="absolute inset-0 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20 hidden">
+                <div class="text-4xl mb-2 animate-pulse">💥</div>
+                <h2 class="text-xl sm:text-2xl font-black text-rose-500 mb-1 arcade-font">遊戲結束</h2>
+                <p class="text-xs text-slate-400 mb-4">Game Over</p>
+                
+                <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 w-full max-w-[240px] mb-6 space-y-2 shadow-lg">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-400">最終得分</span>
+                        <span id="finalScore" class="font-bold text-amber-400 arcade-font">0</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-400">最高紀錄</span>
+                        <span id="highScore" class="font-bold text-cyan-400 arcade-font">0</span>
+                    </div>
+                </div>
+
+                <button id="restartBtn" class="w-full max-w-[240px] py-3.5 px-6 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/40 transition-all transform active:scale-95 arcade-font text-xs tracking-wider cursor-pointer">
+                    再玩一次 RETRY
+                </button>
+            </div>
+        </div>
+
+        <!-- Footer / Controls -->
+        <div class="mt-3 flex justify-between items-center text-[11px] text-slate-400 px-1">
+            <span>💡 鍵盤左右鍵 / 觸控拖曳移動</span>
+            <button id="soundToggle" class="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer">
+                <span>🔊 音效開</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Web Audio API Procedural Sound Engine (No external sound files required)
+        class SoundEngine {
+            constructor() {
+                this.enabled = true;
+                this.ctx = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playCatch(comboCount = 1) {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    const now = this.ctx.currentTime;
+                    const baseFreq = 440 * Math.pow(1.12, Math.min(comboCount, 10));
+                    osc.type = comboCount >= 5 ? 'triangle' : 'sine';
+                    osc.frequency.setValueAtTime(baseFreq, now);
+                    osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, now + 0.12);
+
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } catch(e) {}
+            }
+
+            playBomb() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const bufferSize = this.ctx.sampleRate * 0.4;
+                    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.25));
+                    }
+
+                    const noise = this.ctx.createBufferSource();
+                    noise.buffer = buffer;
+
+                    const filter = this.ctx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(350, this.ctx.currentTime);
+                    filter.frequency.linearRampToValueAtTime(50, this.ctx.currentTime + 0.4);
+
+                    const gain = this.ctx.createGain();
+                    gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
+
+                    noise.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    noise.start();
+                } catch(e) {}
+            }
+
+            playFrenzyStart() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+                    notes.forEach((freq, idx) => {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        const now = this.ctx.currentTime + (idx * 0.06);
+                        osc.frequency.setValueAtTime(freq, now);
+                        gain.gain.setValueAtTime(0.2, now);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                        osc.start(now);
+                        osc.stop(now + 0.12);
+                    });
+                } catch(e) {}
+            }
+        }
+
+        const soundEngine = new SoundEngine();
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameWrapper = document.getElementById('gameWrapper');
+
+        // UI Elements
+        const startOverlay = document.getElementById('startOverlay');
+        const gameOverOverlay = document.getElementById('gameOverOverlay');
+        const startBtn = document.getElementById('startBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const scoreValEl = document.getElementById('scoreVal');
+        const levelValEl = document.getElementById('levelVal');
+        const comboValEl = document.getElementById('comboVal');
+        const livesContainer = document.getElementById('livesContainer');
+        const finalScoreEl = document.getElementById('finalScore');
+        const highScoreEl = document.getElementById('highScore');
+        const soundToggle = document.getElementById('soundToggle');
+        const frenzyBarContainer = document.getElementById('frenzyBarContainer');
+        const frenzyFill = document.getElementById('frenzyFill');
+
+        // Game State Variables
+        let gameState = 'START';
+        let score = 0;
+        let lives = 3;
+        let level = 1;
+        let combo = 0;
+        let comboTimer = 0;
+        let frenzyTimeLeft = 0;
+        const FRENZY_DURATION = 5.0; // seconds
+        let highScore = localStorage.getItem('catch_it_v2_highscore') || 0;
+
+        // Object Pool for Garbage Collection Optimization
+        class ObjectPool {
+            constructor(createFn, resetFn, initialSize = 30) {
+                this.createFn = createFn;
+                this.resetFn = resetFn;
+                this.pool = [];
+                for (let i = 0; i < initialSize; i++) {
+                    this.pool.push(createFn());
+                }
+            }
+
+            acquire() {
+                if (this.pool.length > 0) {
+                    return this.pool.pop();
+                }
+                return this.createFn();
+            }
+
+            release(obj) {
+                this.resetFn(obj);
+                this.pool.push(obj);
+            }
+        }
+
+        let activeItems = [];
+        let activeParticles = [];
+        let activeFloatTexts = [];
+
+        // Item Pool
+        const itemPool = new ObjectPool(
+            () => ({ x: 0, y: 0, radius: 22, speed: 3, config: null, rotation: 0, rotSpeed: 0, active: false }),
+            (item) => { item.active = false; },
+            50
+        );
+
+        // Particle Pool (12-16 geometric particles per collision with gravity and fade out)
+        const particlePool = new ObjectPool(
+            () => ({ x: 0, y: 0, vx: 0, vy: 0, alpha: 1, color: '#fff', size: 4, shape: 'square', active: false }),
+            (p) => { p.active = false; },
+            200
+        );
+
+        // Floating Text Pool
+        const floatTextPool = new ObjectPool(
+            () => ({ x: 0, y: 0, text: '', color: '#fff', alpha: 1, vy: -1.5, active: false }),
+            (ft) => { ft.active = false; },
+            30
+        );
+
+        // Basket Object
+        let basket = {
+            x: 0,
+            y: 0,
+            w: 100,
+            h: 46,
+            speed: 10,
+            targetX: 0
+        };
+
+        const ITEM_TYPES = [
+            { name: '紅蘋果', symbol: '🍎', points: 10, type: 'fruit', prob: 0.25, radius: 21, glowColor: '#ff2a5f', bgColor: '#ffeef2' },
+            { name: '黃香蕉', symbol: '🍌', points: 15, type: 'fruit', prob: 0.25, radius: 21, glowColor: '#ffcc00', bgColor: '#fffbe6' },
+            { name: '紫葡萄', symbol: '🍇', points: 20, type: 'fruit', prob: 0.20, radius: 21, glowColor: '#a855f7', bgColor: '#f5f3ff' },
+            { name: '大西瓜', symbol: '🍉', points: 30, type: 'fruit', prob: 0.10, radius: 25, glowColor: '#22c55e', bgColor: '#f0fdf4' },
+            { name: '黃金星', symbol: '⭐', points: 50, type: 'golden', prob: 0.05, radius: 19, glowColor: '#fbbf24', bgColor: '#fef3c7' },
+            { name: '危險炸彈', symbol: '💣', points: 0, type: 'bomb', prob: 0.15, radius: 23, glowColor: '#ef4444', bgColor: '#fef2f2' }
+        ];
+
+        // Screen Shake State (Feature A: 5-8px random displacement for 150ms)
+        let screenShakeTime = 0;
+        let screenShakeIntensity = 0;
+
+        function triggerScreenShake(intensity = 6, durationMs = 150) {
+            screenShakeIntensity = intensity;
+            screenShakeTime = durationMs;
+        }
+
+        // Input Tracking
+        const keys = { ArrowLeft: false, ArrowRight: false, KeyA: false, KeyD: false };
+        let isPointerDown = false;
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            basket.y = canvas.height - 65;
+            if (gameState === 'START') {
+                basket.x = canvas.width / 2 - basket.w / 2;
+                basket.targetX = basket.x;
+            }
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        window.addEventListener('keydown', e => {
+            if (keys.hasOwnProperty(e.code)) {
+                keys[e.code] = true;
+                e.preventDefault();
+            }
+        });
+        window.addEventListener('keyup', e => {
+            if (keys.hasOwnProperty(e.code)) {
+                keys[e.code] = false;
+                e.preventDefault();
+            }
+        });
+
+        canvas.addEventListener('pointerdown', e => {
+            isPointerDown = true;
+            updatePointerX(e);
+        });
+        canvas.addEventListener('pointermove', e => {
+            if (isPointerDown) {
+                updatePointerX(e);
+            }
+        });
+        canvas.addEventListener('pointerup', () => { isPointerDown = false; });
+        canvas.addEventListener('pointercancel', () => { isPointerDown = false; });
+
+        function updatePointerX(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.clientX - rect.left;
+            basket.targetX = clientX - basket.w / 2;
+        }
+
+        function spawnParticles(x, y, color) {
+            const count = Math.floor(Math.random() * 5) + 12; // 12-16 geometric particles
+            for (let i = 0; i < count; i++) {
+                const p = particlePool.acquire();
+                p.active = true;
+                p.x = x;
+                p.y = y;
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 7 + 2;
+                p.vx = Math.cos(angle) * speed;
+                p.vy = Math.sin(angle) * speed - 1.5;
+                p.alpha = 1;
+                p.color = color;
+                p.size = Math.random() * 5 + 3;
+                p.shape = Math.random() > 0.5 ? 'square' : 'circle';
+                activeParticles.push(p);
+            }
+        }
+
+        function addFloatText(x, y, text, color) {
+            const ft = floatTextPool.acquire();
+            ft.active = true;
+            ft.x = x;
+            ft.y = y;
+            ft.text = text;
+            ft.color = color;
+            ft.alpha = 1;
+            ft.vy = -1.8;
+            activeFloatTexts.push(ft);
+        }
+
+        function updateLivesDisplay() {
+            livesContainer.innerHTML = '';
+            for (let i = 0; i < 3; i++) {
+                const heart = document.createElement('span');
+                heart.className = `text-sm sm:text-base transition-all ${i < lives ? 'opacity-100 scale-100' : 'opacity-20 scale-75 grayscale'}`;
+                heart.innerText = '❤️';
+                livesContainer.appendChild(heart);
+            }
+        }
+
+        let spawnTimer = null;
+        function scheduleNextSpawn() {
+            if (gameState !== 'PLAYING') return;
+            
+            // 效能優化：限制畫面上的最大掉落物數量（超過 8 個時暫緩生成，防止卡頓）
+            if (activeItems.length < 8) {
+                spawnItem();
+            }
+
+            // 超過 Lv.5 以後，生成間隔維持不變，僅靠掉落速度提升難度，徹底解決卡頓問題
+            const effectiveLevel = Math.min(level, 5);
+            const frenzyMult = frenzyTimeLeft > 0 ? 0.75 : 1.0;
+            const delay = Math.max(300, (1000 - (effectiveLevel * 100))) * frenzyMult;
+            spawnTimer = setTimeout(scheduleNextSpawn, delay + Math.random() * 200);
+        }
+
+        function startGame() {
+            soundEngine.init();
+            if (spawnTimer) clearTimeout(spawnTimer);
+            score = 0;
+            lives = 3;
+            level = 1;
+            combo = 0;
+            comboTimer = 0;
+            frenzyTimeLeft = 0;
+
+            activeItems.forEach(i => itemPool.release(i));
+            activeParticles.forEach(p => particlePool.release(p));
+            activeFloatTexts.forEach(ft => floatTextPool.release(ft));
+            activeItems = [];
+            activeParticles = [];
+            activeFloatTexts = [];
+
+            scoreValEl.innerText = score;
+            levelValEl.innerText = level;
+            comboValEl.innerText = `x1`;
+            frenzyBarContainer.classList.add('hidden');
+            gameWrapper.classList.remove('frenzy-glow');
+            updateLivesDisplay();
+            
+            startOverlay.classList.add('hidden');
+            gameOverOverlay.classList.add('hidden');
+            gameState = 'PLAYING';
+            
+            scheduleNextSpawn();
+        }
+
+        function gameOver() {
+            gameState = 'GAMEOVER';
+            if (spawnTimer) clearTimeout(spawnTimer);
+            soundEngine.playBomb();
+            triggerScreenShake(8, 250);
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('catch_it_v2_highscore', highScore);
+            }
+            finalScoreEl.innerText = score;
+            highScoreEl.innerText = highScore;
+            gameOverOverlay.classList.remove('hidden');
+            gameWrapper.classList.remove('frenzy-glow');
+        }
+
+        function spawnItem() {
+            if (gameState !== 'PLAYING') return;
+
+            let rand = Math.random();
+            let cumulative = 0;
+            let selectedType = ITEM_TYPES[0];
+            
+            for (let t of ITEM_TYPES) {
+                cumulative += t.prob;
+                if (rand <= cumulative) {
+                    selectedType = t;
+                    break;
+                }
+            }
+
+            const item = itemPool.acquire();
+            item.active = true;
+            item.radius = selectedType.radius;
+            item.x = Math.random() * (canvas.width - item.radius * 2.5) + item.radius * 1.25;
+            item.y = -50;
+            
+            // 核心優化：Lv.1~5 隨等級提升基礎速度，Lv.5 後維持掉落物數量，但速度持續累加（每級 +0.7）
+            const baseSpeed = 2.5 + (level * 0.7);
+            const frenzyBoost = frenzyTimeLeft > 0 ? 1.2 : 1.0;
+            item.speed = (baseSpeed + Math.random() * 1.2) * frenzyBoost;
+            item.config = selectedType;
+            item.rotation = Math.random() * Math.PI;
+            item.rotSpeed = (Math.random() - 0.5) * 0.04;
+
+            activeItems.push(item);
+        }
+
+        let lastTimestamp = performance.now();
+
+        function update(timestamp) {
+            const dt = (timestamp - lastTimestamp) / 1000;
+            lastTimestamp = timestamp;
+
+            if (gameState !== 'PLAYING') return;
+
+            if (combo > 0) {
+                comboTimer -= dt;
+                if (comboTimer <= 0) {
+                    combo = 0;
+                    comboValEl.innerText = `x1`;
+                }
+            }
+
+            if (frenzyTimeLeft > 0) {
+                frenzyTimeLeft -= dt;
+                const pct = (frenzyTimeLeft / FRENZY_DURATION) * 100;
+                frenzyFill.style.width = `${Math.max(0, pct)}%`;
+                if (frenzyTimeLeft <= 0) {
+                    frenzyBarContainer.classList.add('hidden');
+                    gameWrapper.classList.remove('frenzy-glow');
+                }
+            }
+
+            if (screenShakeTime > 0) {
+                screenShakeTime -= dt * 1000;
+            }
+
+            const speedBoost = frenzyTimeLeft > 0 ? 1.2 : 1.0;
+            const currentBasketSpeed = basket.speed * speedBoost;
+
+            if (keys.ArrowLeft || keys.KeyA) {
+                basket.targetX -= currentBasketSpeed;
+            }
+            if (keys.ArrowRight || keys.KeyD) {
+                basket.targetX += currentBasketSpeed;
+            }
+
+            basket.targetX = Math.max(0, Math.min(canvas.width - basket.w, basket.targetX));
+            basket.x += (basket.targetX - basket.x) * 0.25;
+
+            for (let i = activeItems.length - 1; i >= 0; i--) {
+                let item = activeItems[i];
+                item.y += item.speed;
+                item.rotation += item.rotSpeed;
+
+                const basketHitbox = {
+                    x: basket.x + 6,
+                    y: basket.y + 4,
+                    w: basket.w - 12,
+                    h: basket.h - 8
+                };
+
+                if (
+                    item.x + item.radius >= basketHitbox.x &&
+                    item.x - item.radius <= basketHitbox.x + basketHitbox.w &&
+                    item.y + item.radius >= basketHitbox.y &&
+                    item.y - item.radius <= basketHitbox.y + basketHitbox.h
+                ) {
+                    if (item.config.type === 'bomb') {
+                        lives--;
+                        updateLivesDisplay();
+                        soundEngine.playBomb();
+                        triggerScreenShake(7, 200);
+                        addFloatText(item.x, item.y, '-1 ❤️ 💥', '#ef4444');
+                        spawnParticles(item.x, item.y, '#ef4444');
+                        combo = 0;
+                        comboValEl.innerText = `x1`;
+
+                        if (lives <= 0) {
+                            itemPool.release(item);
+                            activeItems.splice(i, 1);
+                            gameOver();
+                            return;
+                        }
+                    } else {
+                        combo++;
+                        comboTimer = 1.5;
+                        comboValEl.innerText = `x${combo}`;
+
+                        const earnedPoints = item.config.points * combo;
+                        score += earnedPoints;
+                        scoreValEl.innerText = score;
+
+                        soundEngine.playCatch(combo);
+                        triggerScreenShake(4, 100);
+                        spawnParticles(item.x, item.y, item.config.glowColor);
+
+                        if (combo === 5 && frenzyTimeLeft <= 0) {
+                            frenzyTimeLeft = FRENZY_DURATION;
+                            frenzyBarContainer.classList.remove('hidden');
+                            gameWrapper.classList.add('frenzy-glow');
+                            soundEngine.playFrenzyStart();
+                            addFloatText(canvas.width / 2, canvas.height / 3, '⚡ FRENZY 狂熱模式！', '#06b6d4');
+                        } else {
+                            const suffix = combo > 1 ? ` (x${combo})` : '';
+                            addFloatText(item.x, item.y, `+${earnedPoints}${suffix}`, item.config.glowColor);
+                        }
+
+                        const newLevel = Math.floor(score / 150) + 1;
+                        if (newLevel > level) {
+                            level = newLevel;
+                            levelValEl.innerText = level;
+                            addFloatText(canvas.width / 2, canvas.height / 4, `LEVEL UP! Lv.${level}`, '#22d3ee');
+                        }
+                    }
+
+                    itemPool.release(item);
+                    activeItems.splice(i, 1);
+                    continue;
+                }
+
+                if (item.y > canvas.height + 60) {
+                    itemPool.release(item);
+                    activeItems.splice(i, 1);
+                }
+            }
+
+            for (let i = activeParticles.length - 1; i >= 0; i--) {
+                let p = activeParticles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.15;
+                p.alpha -= 0.035;
+                if (p.alpha <= 0) {
+                    particlePool.release(p);
+                    activeParticles.splice(i, 1);
+                }
+            }
+
+            for (let i = activeFloatTexts.length - 1; i >= 0; i--) {
+                let ft = activeFloatTexts[i];
+                ft.y += ft.vy;
+                ft.alpha -= 0.025;
+                if (ft.alpha <= 0) {
+                    floatTextPool.release(ft);
+                    activeFloatTexts.splice(i, 1);
+                }
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            if (screenShakeTime > 0) {
+                const offsetX = (Math.random() - 0.5) * screenShakeIntensity;
+                const offsetY = (Math.random() - 0.5) * screenShakeIntensity;
+                ctx.translate(offsetX, offsetY);
+            }
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < canvas.width; i += 40) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, canvas.height);
+                ctx.stroke();
+            }
+
+            // Draw Basket
+            ctx.save();
+            ctx.shadowColor = frenzyTimeLeft > 0 ? '#06b6d4' : 'rgba(99, 102, 241, 0.7)';
+            ctx.shadowBlur = frenzyTimeLeft > 0 ? 25 : 18;
+            
+            const basketGradient = ctx.createLinearGradient(basket.x, basket.y, basket.x, basket.y + basket.h);
+            basketGradient.addColorStop(0, frenzyTimeLeft > 0 ? '#22d3ee' : '#818cf8');
+            basketGradient.addColorStop(1, frenzyTimeLeft > 0 ? '#0284c7' : '#4f46e5');
+            ctx.fillStyle = basketGradient;
+            
+            ctx.beginPath();
+            ctx.roundRect(basket.x, basket.y, basket.w, basket.h, [10, 10, 22, 22]);
+            ctx.fill();
+
+            ctx.fillStyle = frenzyTimeLeft > 0 ? '#cffafe' : '#c7d2fe';
+            ctx.beginPath();
+            ctx.roundRect(basket.x - 5, basket.y - 5, basket.w + 10, 9, 5);
+            ctx.fill();
+            ctx.restore();
+
+            // Draw Items with high-contrast glowing badges
+            activeItems.forEach(item => {
+                ctx.save();
+                ctx.translate(item.x, item.y);
+                ctx.rotate(item.rotation);
+
+                ctx.shadowColor = item.config.glowColor;
+                ctx.shadowBlur = item.config.type === 'bomb' ? 25 : 18;
+
+                ctx.fillStyle = item.config.bgColor;
+                ctx.beginPath();
+                ctx.arc(0, 0, item.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = item.config.glowColor;
+                ctx.lineWidth = item.config.type === 'bomb' ? 4 : 3;
+                ctx.stroke();
+
+                ctx.font = `${item.radius * 1.3}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(item.config.symbol, 0, 0);
+
+                if (item.config.type === 'bomb') {
+                    ctx.fillStyle = '#fde047';
+                    ctx.beginPath();
+                    ctx.arc(item.radius * 0.6, -item.radius * 0.6, 5 + Math.sin(Date.now() * 0.02) * 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            });
+
+            // Draw Particles
+            activeParticles.forEach(p => {
+                ctx.save();
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = p.color;
+                ctx.shadowColor = p.color;
+                ctx.shadowBlur = 8;
+                if (p.shape === 'square') {
+                    ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            });
+
+            // Draw Floating Texts
+            activeFloatTexts.forEach(ft => {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, ft.alpha);
+                ctx.font = 'bold 15px "Press Start 2P", monospace';
+                ctx.fillStyle = ft.color;
+                ctx.shadowColor = ft.color;
+                ctx.shadowBlur = 10;
+                ctx.textAlign = 'center';
+                ctx.fillText(ft.text, ft.x, ft.y);
+                ctx.restore();
+            });
+
+            ctx.restore();
+        }
+
+        function gameLoop(timestamp) {
+            update(timestamp);
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', startGame);
+
+        soundToggle.addEventListener('click', () => {
+            soundEngine.enabled = !soundEngine.enabled;
+            soundToggle.innerHTML = soundEngine.enabled ? '<span>🔊 音效開</span>' : '<span>🔇 音效關</span>';
+        });
+
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
