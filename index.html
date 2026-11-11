@@ -94,12 +94,59 @@
 
         <!-- Footer / Controls -->
         <div class="mt-2.5 flex justify-between items-center text-[11px] text-slate-400 px-1">
-            <span>💡 左右方向鍵 / A、D 鍵 / 觸控滑鼠拖曳</span>
-            <span class="text-[10px] text-indigo-400">v2.1 精靈音訊版</span>
+            <span>💡 左右鍵移動 / 空白鍵扇形射擊 / 觸控拖曳</span>
+            <span class="text-[10px] text-indigo-400">v2.2 散射子彈版</span>
         </div>
     </div>
 
-    <!-- ES6 模組載入（相對路徑防錯） -->
+    <!-- 引入獨立子彈與散射動效模組 (Bullet VFX System) -->
+    <script type="module" src="./src/bullets.js"></script>
     <script type="module" src="./js/main.js"></script>
+    <script type="module">
+        import { BulletSystem } from './src/bullets.js';
+
+        // 綁定空白鍵發射（支援單擊點射與長按連續扇形散射）
+        let isSpacePressed = false;
+        let continuousFireTimer = null;
+
+        function triggerFire() {
+            let px = 0;
+            let py = 0;
+
+            if (window.game && window.game.player) {
+                px = window.game.player.x + window.game.player.w / 2;
+                py = window.game.player.y;
+            } else {
+                const canvas = document.getElementById('gameCanvas');
+                px = canvas ? canvas.width / 2 : window.innerWidth / 2;
+                py = canvas ? canvas.height - 60 : window.innerHeight - 80;
+            }
+
+            BulletSystem.fire(px, py);
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (!isSpacePressed) {
+                    isSpacePressed = true;
+                    triggerFire();
+                    // 長按空白鍵連續射擊 (每 110ms 發射一輪扇形散射)
+                    continuousFireTimer = setInterval(triggerFire, 110);
+                }
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                isSpacePressed = false;
+                if (continuousFireTimer) {
+                    clearInterval(continuousFireTimer);
+                    continuousFireTimer = null;
+                }
+            }
+        });
+    </script>
 </body>
 </html>
