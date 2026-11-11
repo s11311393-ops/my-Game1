@@ -432,6 +432,11 @@ export class Game {
         // === 3. 繪製掉落物、幾何爆炸粒子與浮動文字 ===
         this.enemyManager.draw(this.ctx);
 
+        // === 3.5 繪製與更新獨立子彈散射動效系統 (Bullet VFX System) ===
+        if (window.BulletSystem && typeof window.BulletSystem.update === 'function') {
+            window.BulletSystem.update(this.ctx);
+        }
+
         // === 4. 繪製製作人標註 (左下角浮水印) ===
         this.ctx.save();
         this.ctx.font = '700 9px "Press Start 2P", monospace';
